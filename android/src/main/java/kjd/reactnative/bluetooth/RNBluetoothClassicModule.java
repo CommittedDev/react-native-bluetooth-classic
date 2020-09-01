@@ -72,6 +72,8 @@ public class RNBluetoothClassicModule
 
   private static final boolean D = BuildConfig.DEBUG;
 
+  private static final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
+
   /**
    * Android {@link BluetoothAdapter} responsible for communication.
    */
@@ -825,19 +827,21 @@ public class RNBluetoothClassicModule
     String msg = String.format("Received %d bytes from device %s", data.length, device.getName());
     Log.d(TAG, msg);
 
-    mBuffer.append(new String(data, mCharset));
-
     if (!mReadObserving.get()) {
       Log.d(TAG, "No BTEvent.READ listeners are registered, skipping handling of the event");
       return;
     }
 
-    String message;
-    while ((message = readUntil(this.mDelimiter)) != null) {
-      BluetoothMessage bluetoothMessage
-              = new BluetoothMessage<>(new NativeDevice(mBluetoothService.connectedDevice()).map(), message);
-      sendEvent(BluetoothEvent.READ.code, bluetoothMessage.asMap());
+    char[] hexChars = new char[data.length * 2];
+    for ( int j = 0; j < data.length; j++ ) {
+      int v = data[j] & 0xFF;
+      hexChars[j * 2] = HEX_CHARS[v >>> 4];
+      hexChars[j * 2 + 1] = HEX_CHARS[v & 0x0F];
     }
+
+    BluetoothMessage bluetoothMessage
+            = new BluetoothMessage<>(new NativeDevice(mBluetoothService.connectedDevice()).map(), new String(hexChars));
+    sendEvent(BluetoothEvent.READ.code, bluetoothMessage.asMap());
   }
 
   /**
